@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 400px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin: 0 auto;
+            margin-top: 50px;
+        }
+        .error-message {
+            color: #f44336;
+            margin-top: 5px;
+        }
+        .success-message {
+            color: #4caf50;
+            margin-top: 5px;
+        }
+        .resend-section {
+            margin-top: 20px;
+        }
+        .timer {
+            font-weight: bold;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-center mb-4">Verify OTP</h2>
+        <form id="verifyForm">
+            <div class="form-group">
+                <label for="otp">OTP</label>
+                <input type="text" class="form-control" id="otp" name="otp" required>
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary btn-block">Verify</button>
+            </div>
+        </form>
+        <div id="message" class="error-message" style="display: none;"></div>
+        <div id="successMessage" class="success-message" style="display: none;"></div>
+        <div id="resendSection" class="resend-section" style="display: none;">
+            <p id="timer" class="timer"></p>
+            <button id="resendButton" class="btn btn-secondary btn-block" disabled>Resend OTP</button>
+        </div>
+        <div class="text-center mt-4">
+            <a href="/login.html">Already have an account? Login here</a>
+        </div>
+    </div>
+ 
+    <!-- Bootstrap JS and dependencies (jQuery, Popper.js) -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+ 
+    <script>
+        const verifyForm = document.getElementById('verifyForm');
+        const message = document.getElementById('message');
+        const successMessage = document.getElementById('successMessage');
+        const resendSection = document.getElementById('resendSection');
+        const resendButton = document.getElementById('resendButton');
+        const timerElement = document.getElementById('timer');
+ 
+        let resendTimeout;
+ 
+        function startResendTimer() {
+            let timeRemaining = 20; // 30 seconds countdown
+ 
+            resendButton.disabled = true;
+            resendSection.style.display = 'block';
+ 
+            const updateTimer = () => {
+                if (timeRemaining > 0) {
+                    timerElement.textContent = `You can resend OTP in ${timeRemaining} seconds`;
+                    timeRemaining -= 1;
+                    resendTimeout = setTimeout(updateTimer, 1000);
+                } else {
+                    timerElement.textContent = 'You can now resend OTP';
+                    resendButton.disabled = false;
+                }
+            };
+ 
+            updateTimer();
+        }
+ 
+        verifyForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+ 
+            const otp = verifyForm.otp.value;
+ 
+            try {
+                const response = await fetch('/verify/otp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ otp })
+                });
+ 
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Verification failed');
+                }
+ 
+                // Show success message and redirect after a short delay
+                successMessage.textContent = 'Verification successful! Redirecting...';
+                successMessage.style.display = 'block';
+                message.style.display = 'none';
+ 
+                setTimeout(() => {
+                    window.location.href = '/login.html';
+                }, 1000); // Adjust the delay as needed
+ 
+            } catch (error) {
+                message.textContent = error.message;
+                message.style.display = 'block';
+                successMessage.style.display = 'none';
+ 
+                // Start the resend timer
+                startResendTimer();
+            }
+        });
+ 
+        resendButton.addEventListener('click', async function() {
+    const userId = localStorage.getItem('userId'); // Retrieve userId from localStorage
+ 
+    if (!userId) {
+        message.textContent = 'User ID is not available.';
+        message.style.display = 'block';
+        return;
+    }
+ 
+    try {
+        const response = await fetch('/resend/otp', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userId })
+        });
+ 
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to resend OTP');
+        }
+ 
+        // Display success message
+        successMessage.textContent = 'OTP has been resent to your email.';
+        successMessage.style.display = 'block';
+        message.style.display = 'none';
+ 
+        // Restart the resend timer
+        startResendTimer();
+    } catch (error) {
+        message.textContent = error.message;
+        message.style.display = 'block';
+        successMessage.style.display = 'none';
+    }
+});
+ 
+ 
+        // Start the resend timer when the page loads
+        startResendTimer();
+    </script>
+</body>
+</html>
+ 
+ 
+ 

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Linkloom</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f0f2f5; /* Light gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .login-container {
+            display: flex;
+            width: 80%;
+            max-width: 1200px;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .logo-container {
+            flex: 1;
+            text-align: center;
+            margin-right: 50px;
+        }
+        .logo-container h1 {
+            font-size: 48px;
+            color: #1877f2; /* Facebook blue */
+            margin-bottom: 20px;
+        }
+        .logo-container p {
+            font-size: 24px;
+            color: #333;
+        }
+        .form-container {
+            flex: 1;
+            max-width: 400px;
+            background-color: #ffffff; /* White background for the form */
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .btn-primary {
+            background-color: #1877f2; /* Facebook blue */
+            border-color: #1877f2;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .btn-primary:hover {
+            background-color: #155bcb;
+            border-color: #155bcb;
+        }
+        .btn-secondary {
+            background-color: #42b72a; /* Green for Create new account */
+            border-color: #42b72a;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .btn-secondary:hover {
+            background-color: #36a420;
+            border-color: #36a420;
+        }
+        .signup-link {
+            text-align: center;
+        }
+        .signup-link a {
+            color: #1877f2; /* Facebook blue */
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo-container">
+            <h1>Linkloom</h1>
+            <p>Linkloom helps you connect and share with the people in your life.</p>
+        </div>
+        <div class="form-container">
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="Email">Email address or phone number</label>
+                    <input type="email" class="form-control" id="Email" name="Email" required>
+                </div>
+                <div class="form-group">
+                    <label for="Password">Password</label>
+                    <input type="password" class="form-control" id="Password" name="Password" required>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">Log In</button>
+                </div>
+                <div class="form-group">
+                    <a href="/reset.html" class="btn btn-link">Forgotten password?</a>
+                </div>
+                <hr>
+                <div class="form-group">
+                    <a href="/signup.html" class="btn btn-secondary">Create new account</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS and dependencies (jQuery, Popper.js) -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+    
+            const Email = document.getElementById('Email').value;
+            const Password = document.getElementById('Password').value;
+    
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ Email, Password })
+                });
+    
+                const data = await response.json();
+    
+                if (!response.ok) {
+                    if (data.redirect) {
+                        // Redirect to OTP verification page
+                        window.location.href = data.redirect;
+                    } else {
+                        throw new Error(data.error || 'Login failed');
+                    }
+                } else {
+                    const { user, token } = data;
+    
+                    // Store token and full name in local storage
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('fullName', user.fullName);
+                    window.location.href = `/dashboard/${user.id}`;
+                }
+            } catch (error) {
+                document.getElementById('errorMessage').textContent = error.message;
+                document.getElementById('errorMessage').style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
