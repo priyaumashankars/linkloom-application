@@ -34,7 +34,6 @@
         .text-center a:hover {
             text-decoration: underline;
         }
-        
     </style>
 </head>
 <body>
@@ -66,7 +65,7 @@
             <a href="/reset.html">Forgot Password?</a>
         </div>
     </div>
- 
+    
     <!-- Bootstrap JS and dependencies (jQuery, Popper.js) -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
@@ -86,7 +85,6 @@
                 document.getElementById('successMessage').style.display = 'none';
                 return;
             }
- 
             try {
                 const response = await fetch('/signup', {
                     method: 'POST',
