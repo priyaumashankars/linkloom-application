@@ -139,11 +139,8 @@
                     <div class="col-12 mb-3">
                         <div class="sidebar-column">
                             <h5>Friends</h5>
-                            <ul>
-                                <li><a href="#">Friend 1</a></li>
-                                <li><a href="#">Friend 2</a></li>
-                                <li><a href="#">Friend 3</a></li>
-                                <!-- Add more friends as needed -->
+                            <ul id="friendsList">
+                                <!-- Friends will be populated here -->
                             </ul>
                         </div>
                     </div>
@@ -151,11 +148,8 @@
                     <div class="col-12 mb-3">
                         <div class="sidebar-column">
                             <h5>Groups</h5>
-                            <ul>
-                                <li><a href="#">Group 1</a></li>
-                                <li><a href="#">Group 2</a></li>
-                                <li><a href="#">Group 3</a></li>
-                                <!-- Add more groups as needed -->
+                            <ul id="groupsList">
+                                <!-- Groups will be populated here -->
                             </ul>
                         </div>
                     </div>
@@ -163,11 +157,8 @@
                     <div class="col-12">
                         <div class="sidebar-column">
                             <h5>Pages</h5>
-                            <ul>
-                                <li><a href="#">Page 1</a></li>
-                                <li><a href="#">Page 2</a></li>
-                                <li><a href="#">Page 3</a></li>
-                                <!-- Add more pages as needed -->
+                            <ul id="pagesList">
+                                <!-- Pages will be populated here -->
                             </ul>
                         </div>
                     </div>
@@ -196,19 +187,30 @@
             }
 
             try {
-                const response = await fetch('/protected', {
+                // Fetch user info
+                const userResponse = await fetch('/protected', {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
                 });
 
-                if (!response.ok) {
+                if (!userResponse.ok) {
                     throw new Error('Failed to authenticate.');
                 }
 
-                const user = await response.json();
-                const fullName = localStorage.getItem('fullName');
-                fullNameSpan.textContent = fullName || 'User';
+                const user = await userResponse.json();
+                fullNameSpan.textContent = user.fullName || 'User';
+
+                // Fetch friends, groups, and pages (mocked as example)
+                // In a real application, you'd replace these with actual API endpoints
+                const friends = ['Friend 1', 'Friend 2', 'Friend 3'];
+                const groups = ['Group 1', 'Group 2', 'Group 3'];
+                const pages = ['Page 1', 'Page 2', 'Page 3'];
+
+                // Populate the sidebar lists
+                document.getElementById('friendsList').innerHTML = friends.map(friend => `<li><a href="#">${friend}</a></li>`).join('');
+                document.getElementById('groupsList').innerHTML = groups.map(group => `<li><a href="#">${group}</a></li>`).join('');
+                document.getElementById('pagesList').innerHTML = pages.map(page => `<li><a href="#">${page}</a></li>`).join('');
 
             } catch (error) {
                 console.error('Error loading dashboard:', error.message);

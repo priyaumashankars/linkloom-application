@@ -10,7 +10,7 @@ const crypto = require('crypto');
 const bodyParser = require('body-parser');
 const multer = require('multer'); // Add multer for handling file uploads
 const fs = require('fs');
-const secret = 'your_jwt_secret';
+const secret = process.env.JWT_SECRET || 'your_jwt_secret'; // Use environment variable for JWT secret
 
 const app = express();
 const port = 3000;
@@ -27,29 +27,65 @@ async function initializeDatabase() {
             driver: sqlite3.Database
         });
 
-        await db.exec(`CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fullName TEXT,
-            Email TEXT UNIQUE,
-            Password TEXT,
-            otp INTEGER,
-            otp_expiry INTEGER,
-            verification BOOLEAN DEFAULT FALSE,
-            resetToken TEXT,
-            resetTokenExpiry INTEGER
-        );`);
+        await db.exec(`
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fullName TEXT,
+                Email TEXT UNIQUE,
+                Password TEXT,
+                otp INTEGER,
+                otp_expiry INTEGER,
+                verification BOOLEAN DEFAULT FALSE,
+                resetToken TEXT,
+                resetTokenExpiry INTEGER
+            );
+        `);
 
-        await db.exec(`CREATE TABLE IF NOT EXISTS posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            userId INTEGER,
-            title TEXT,
-            content TEXT,
-            mediaUrl TEXT,
-            mediaType TEXT,
-            createdAt INTEGER,
-            updatedAt INTEGER,
-            FOREIGN KEY (userId) REFERENCES users(id)
-        );`);
+        await db.exec(`
+            CREATE TABLE IF NOT EXISTS posts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                userId INTEGER,
+                title TEXT,
+                content TEXT,
+                mediaUrl TEXT,
+                mediaType TEXT,
+                createdAt INTEGER,
+                updatedAt INTEGER,
+                FOREIGN KEY (userId) REFERENCES users(id)
+            );
+        `);
+
+        await db.exec(`
+            CREATE TABLE IF NOT EXISTS likes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                postId INTEGER,
+                userId INTEGER,
+                FOREIGN KEY (postId) REFERENCES posts(id),
+                FOREIGN KEY (userId) REFERENCES users(id)
+            );
+        `);
+
+        await db.exec(`
+            CREATE TABLE IF NOT EXISTS dislikes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                postId INTEGER,
+                userId INTEGER,
+                FOREIGN KEY (postId) REFERENCES posts(id),
+                FOREIGN KEY (userId) REFERENCES users(id)
+            );
+        `);
+
+        await db.exec(`
+            CREATE TABLE IF NOT EXISTS comments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                postId INTEGER,
+                userId INTEGER,
+                comment TEXT,
+                createdAt INTEGER,
+                FOREIGN KEY (postId) REFERENCES posts(id),
+                FOREIGN KEY (userId) REFERENCES users(id)
+            );
+        `);
 
         console.log('Database initialized');
     } catch (error) {
@@ -66,9 +102,12 @@ app.use('/login', express.static(path.join(__dirname, 'public', 'login.html')));
 app.use('/signup', express.static(path.join(__dirname, 'public', 'signup.html')));
 app.use('/verify/otp', express.static(path.join(__dirname, 'public', 'verify.html')));
 app.use('/dashboard/:id', express.static(path.join(__dirname, 'public', 'dashboard.html')));
+app.use('/post/:id', express.static(path.join(__dirname, 'public', 'post.html')));
+app.use('/profile/:id', express.static(path.join(__dirname, 'public', 'profile.html')));
 app.use(bodyParser.json());
 app.use(cors());
 app.use(express.json());
+app.use(express.static('public'));
 
 // Set up multer for file uploads
 const upload = multer({ dest: 'uploads/' });
@@ -229,150 +268,42 @@ app.post('/reset/password', async (req, res) => {
 
     try {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        const result = await db.run('UPDATE users SET Password = ?, resetToken = NULL, resetTokenExpiry = NULL WHERE Email = ?', [hashedPassword, email]);
-
-        if (result.changes === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        res.status(200).json({ message: 'Password has been reset successfully.' });
+        await db.run('UPDATE users SET Password = ? WHERE Email = ?', [hashedPassword, email]);
+        res.json({ message: 'Password reset successfully' });
     } catch (error) {
         console.error('Password reset failed', error);
         res.status(500).json({ error: 'Password reset failed' });
     }
 });
 
-// Handle password reset confirmation
-app.post('/confirm/reset/password', async (req, res) => {
-    const { token, newPassword } = req.body;
-
-    if (!token || !newPassword) {
-        return res.status(400).json({ error: 'Token and new password are required' });
-    }
+// Serve dashboard page
+app.get('/dashboard/:id', async (req, res) => {
+    const userId = parseInt(req.params.id, 10);
 
     try {
-        const user = await db.get('SELECT * FROM users WHERE resetToken = ? AND resetTokenExpiry > ?', [token, Date.now()]);
-
-        if (!user) {
-            return res.status(400).json({ error: 'Invalid or expired token' });
-        }
-
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-        await db.run('UPDATE users SET Password = ?, resetToken = NULL, resetTokenExpiry = NULL WHERE id = ?', [
-            hashedPassword,
-            user.id
-        ]);
-
-        res.status(200).json({ message: 'Password has been reset successfully.' });
+        res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
     } catch (error) {
-        console.error('Password reset confirmation failed', error);
-        res.status(500).json({ error: 'Password reset confirmation failed' });
+        console.error('Failed to serve dashboard page', error);
+        res.status(500).json({ error: 'Failed to serve dashboard page' });
     }
 });
 
-// Send OTP for password reset
-app.post('/send/otp', async (req, res) => {
-    const { email } = req.body;
-
-    // Validate input
-    if (!email) {
-        return res.status(400).json({ error: 'Email is required' });
-    }
-
-    try {
-        // Check if the user exists
-        const user = await db.get('SELECT * FROM users WHERE Email = ?', [email]);
-
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        // Generate OTP and expiry
-        const otp = crypto.randomInt(100000, 999999);
-        const otpExpiry = Date.now() + 15 * 60 * 1000; // 15 minutes expiry
-
-        // Update OTP and expiry in the database
-        await db.run('UPDATE users SET otp = ?, otp_expiry = ? WHERE Email = ?', [otp, otpExpiry, email]);
-
-        // Send OTP email
-        await transporter.sendMail({
-            from: 'no-reply@gyan.com',
-            to: email,
-            subject: 'Your OTP Code',
-            text: `Your OTP code is ${otp}`
-        });
-
-        res.status(200).json({ message: 'OTP sent successfully' });
-    } catch (error) {
-        console.error('Failed to send OTP', error);
-        res.status(500).json({ error: 'Failed to send OTP' });
-    }
-});
-
-// Resend OTP
-app.post('/resend/otp', async (req, res) => {
-    const { userId, email } = req.body;
-
-    if (!userId && !email) {
-        return res.status(400).json({ error: 'Either User ID or Email is required' });
-    }
-
-    try {
-        let user;
-        if (email) {
-            // Retrieve user based on email
-            user = await db.get('SELECT id FROM users WHERE Email = ?', [email]);
-        } else if (userId) {
-            // Retrieve user based on userId
-            user = await db.get('SELECT Email FROM users WHERE id = ?', [userId]);
-        }
-
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        const userEmail = user.Email || email; // Determine email to use
-        const otp = crypto.randomInt(100000, 999999); // Generate new OTP
-
-        // Update OTP and expiry in the database
-        await db.run('UPDATE users SET otp = ?, otp_expiry = ? WHERE Email = ?', [
-            otp,
-            Date.now() + 15 * 60 * 1000, // OTP expires in 15 minutes
-            userEmail
-        ]);
-
-        // Send OTP email
-        await transporter.sendMail({
-            from: 'no-reply@gyan.com',
-            to: userEmail,
-            subject: 'Your New OTP Code',
-            text: `Your new OTP code is ${otp}`
-        });
-
-        res.json({ success: 'OTP has been resent to your email' });
-    } catch (error) {
-        console.error('Failed to resend OTP:', error);
-        res.status(500).json({ error: 'Failed to resend OTP' });
-    }
-});
-
-// Upload media (image/video)
-app.post('/upload/media', authenticateToken, upload.single('media'), async (req, res) => {
+// Post a photo or media
+app.post('/posts', authenticateToken, upload.single('media'), async (req, res) => {
     const { title, content } = req.body;
-    const { path: filePath, mimetype } = req.file;
+    const userId = req.user.id;
+    const media = req.file;
 
-    if (!title || !content || !req.file) {
-        return res.status(400).json({ error: 'Title, content, and media are required' });
+    if (!title || !content || !media) {
+        return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    try {
-        const mediaUrl = `/uploads/${req.file.filename}`;
-        const mediaType = mimetype.startsWith('image/') ? 'image' : mimetype.startsWith('video/') ? 'video' : 'unknown';
+    const mediaUrl = `/uploads/${media.filename}`;
+    const mediaType = media.mimetype;
 
-        // Store post with media metadata
-        await db.run('INSERT INTO posts (userId, title, content, mediaUrl, mediaType, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)', [
-            req.user.id,
+    try {
+        const result = await db.run('INSERT INTO posts (userId, title, content, mediaUrl, mediaType, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)', [
+            userId,
             title,
             content,
             mediaUrl,
@@ -381,21 +312,96 @@ app.post('/upload/media', authenticateToken, upload.single('media'), async (req,
             Date.now()
         ]);
 
-        res.status(201).json({ message: 'Media uploaded successfully', mediaUrl });
+        res.json({ message: 'Post created successfully', postId: result.lastID });
     } catch (error) {
-        console.error('Media upload failed', error);
-        res.status(500).json({ error: 'Media upload failed' });
+        console.error('Failed to create post', error);
+        res.status(500).json({ error: 'Failed to create post' });
     }
 });
 
-// Serve uploaded media
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Like a post
+app.post('/posts/:id/like', authenticateToken, async (req, res) => {
+    const postId = parseInt(req.params.id, 10);
+    const userId = req.user.id;
 
-app.get('/protected', authenticateToken, (req, res) => {
-    res.json(req.user);
+    try {
+        const existingLike = await db.get('SELECT * FROM likes WHERE postId = ? AND userId = ?', [postId, userId]);
+
+        if (existingLike) {
+            return res.status(400).json({ error: 'You have already liked this post' });
+        }
+
+        await db.run('INSERT INTO likes (postId, userId) VALUES (?, ?)', [postId, userId]);
+        res.json({ message: 'Post liked successfully' });
+    } catch (error) {
+        console.error('Failed to like post', error);
+        res.status(500).json({ error: 'Failed to like post' });
+    }
 });
 
-// Start the server
+// Dislike a post
+app.post('/posts/:id/dislike', authenticateToken, async (req, res) => {
+    const postId = parseInt(req.params.id, 10);
+    const userId = req.user.id;
+
+    try {
+        const existingDislike = await db.get('SELECT * FROM dislikes WHERE postId = ? AND userId = ?', [postId, userId]);
+
+        if (existingDislike) {
+            return res.status(400).json({ error: 'You have already disliked this post' });
+        }
+
+        await db.run('INSERT INTO dislikes (postId, userId) VALUES (?, ?)', [postId, userId]);
+        res.json({ message: 'Post disliked successfully' });
+    } catch (error) {
+        console.error('Failed to dislike post', error);
+        res.status(500).json({ error: 'Failed to dislike post' });
+    }
+});
+
+// Add a comment to a post
+app.post('/posts/:id/comment', authenticateToken, async (req, res) => {
+    const postId = parseInt(req.params.id, 10);
+    const userId = req.user.id;
+    const { comment } = req.body;
+
+    if (!comment) {
+        return res.status(400).json({ error: 'Comment is required' });
+    }
+
+    try {
+        await db.run('INSERT INTO comments (postId, userId, comment, createdAt) VALUES (?, ?, ?, ?)', [
+            postId,
+            userId,
+            comment,
+            Date.now()
+        ]);
+
+        res.json({ message: 'Comment added successfully' });
+    } catch (error) {
+        console.error('Failed to add comment', error);
+        res.status(500).json({ error: 'Failed to add comment' });
+    }
+});
+
+// Get all posts with comments and likes
+app.get('/posts', async (req, res) => {
+    try {
+        const posts = await db.all('SELECT posts.*, COUNT(likes.id) as likeCount, COUNT(dislikes.id) as dislikeCount FROM posts LEFT JOIN likes ON posts.id = likes.postId LEFT JOIN dislikes ON posts.id = dislikes.postId GROUP BY posts.id');
+
+        // Fetch comments for each post
+        for (let post of posts) {
+            const comments = await db.all('SELECT * FROM comments WHERE postId = ?', [post.id]);
+            post.comments = comments;
+        }
+
+        res.json(posts);
+    } catch (error) {
+        console.error('Failed to fetch posts', error);
+        res.status(500).json({ error: 'Failed to fetch posts' });
+    }
+});
+
 app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+    console.log(`Server is running at http://localhost:${port}`);
 });

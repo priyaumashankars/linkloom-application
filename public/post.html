@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post Interaction</title>
+    <style>
+        /* Basic styling */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 80%;
+            margin: 20px auto;
+        }
+        .post {
+            border: 1px solid #ddd;
+            background-color: #fff;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        .post h2 {
+            margin: 0 0 10px;
+        }
+        .like-button, .dislike-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+        .like-button:hover, .dislike-button:hover {
+            background-color: #0056b3;
+        }
+        .comment-section {
+            margin-top: 15px;
+        }
+        .comment {
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+        .message {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="posts-container">
+        <!-- Posts will be loaded here -->
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchPosts();
+        });
+
+        async function fetchPosts() {
+            const token = localStorage.getItem('token'); // Assume token is stored in localStorage
+
+            try {
+                const response = await fetch('/posts', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const posts = await response.json();
+                displayPosts(posts);
+            } catch (error) {
+                console.error('Error fetching posts:', error);
+            }
+        }
+
+        function displayPosts(posts) {
+            const container = document.getElementById('posts-container');
+            container.innerHTML = ''; // Clear existing content
+
+            posts.forEach(post => {
+                const postElement = document.createElement('div');
+                postElement.className = 'post';
+                postElement.innerHTML = `
+                    <h2>${post.title}</h2>
+                    <p>${post.content}</p>
+                    <button class="like-button" onclick="likePost(${post.id})">Like (${post.likeCount})</button>
+                    <button class="dislike-button" onclick="dislikePost(${post.id})">Dislike (${post.dislikeCount})</button>
+                    <div class="message" id="message-${post.id}"></div>
+                    <div class="comment-section">
+                        <textarea id="comment-input-${post.id}" placeholder="Add a comment"></textarea>
+                        <button onclick="addComment(${post.id})">Add Comment</button>
+                        ${post.comments.map(comment => `
+                            <div class="comment">
+                                <p>${comment.comment}</p>
+                                <small>Commented on: ${new Date(comment.createdAt).toLocaleString()}</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(postElement);
+            });
+        }
+
+        async function likePost(postId) {
+            const token = localStorage.getItem('token'); // Assume token is stored in localStorage
+            const messageElement = document.getElementById(`message-${postId}`);
+
+            try {
+                const response = await fetch(`/posts/${postId}/like`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    messageElement.textContent = 'Post liked successfully!';
+                    messageElement.style.color = 'green';
+                    fetchPosts(); // Refresh posts
+                } else {
+                    messageElement.textContent = data.error;
+                    messageElement.style.color = 'red';
+                }
+            } catch (error) {
+                console.error('Error liking post:', error);
+                messageElement.textContent = 'An error occurred while liking the post.';
+                messageElement.style.color = 'red';
+            }
+        }
+
+        async function dislikePost(postId) {
+            const token = localStorage.getItem('token'); // Assume token is stored in localStorage
+            const messageElement = document.getElementById(`message-${postId}`);
+
+            try {
+                const response = await fetch(`/posts/${postId}/dislike`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    messageElement.textContent = 'Post disliked successfully!';
+                    messageElement.style.color = 'red';
+                    fetchPosts(); // Refresh posts
+                } else {
+                    messageElement.textContent = data.error;
+                    messageElement.style.color = 'red';
+                }
+            } catch (error) {
+                console.error('Error disliking post:', error);
+                messageElement.textContent = 'An error occurred while disliking the post.';
+                messageElement.style.color = 'red';
+            }
+        }
+
+        async function addComment(postId) {
+            const token = localStorage.getItem('token'); // Assume token is stored in localStorage
+            const commentInput = document.getElementById(`comment-input-${postId}`);
+            const messageElement = document.getElementById(`message-${postId}`);
+            const comment = commentInput.value.trim();
+
+            if (!comment) {
+                messageElement.textContent = 'Comment cannot be empty';
+                messageElement.style.color = 'red';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/posts/${postId}/comment`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ comment })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    messageElement.textContent = 'Comment added successfully!';
+                    messageElement.style.color = 'green';
+                    commentInput.value = ''; // Clear input
+                    fetchPosts(); // Refresh posts
+                } else {
+                    messageElement.textContent = data.error;
+                    messageElement.style.color = 'red';
+                }
+            } catch (error) {
+                console.error('Error adding comment:', error);
+                messageElement.textContent = 'An error occurred while adding the comment.';
+                messageElement.style.color = 'red';
+            }
+        }
+    </script>
+</body>
+</html>
