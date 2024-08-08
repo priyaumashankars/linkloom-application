@@ -37,18 +37,19 @@
             position: relative;
             background-color: #fff;
             padding: 20px;
-            margin-bottom: 20px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-top: 60px; /* Adjust for fixed navbar */
         }
         .cover-photo {
             width: 100%;
             height: 300px;
             object-fit: cover;
             border-radius: 8px;
+            display: block;
         }
         .profile-photo-container {
             position: absolute;
-            top: 200px;
+            top: 200px; /* Adjusted position */
             left: 20px;
             border: 5px solid white;
             border-radius: 50%;
@@ -63,17 +64,24 @@
         }
         .upload-icon {
             position: absolute;
-            top: 200px;
+            top: 200px; /* Adjusted position */
             left: 20px;
             font-size: 24px;
             color: #4267B2;
             cursor: pointer;
-            margin-left: 125px;
-            margin-top: 125px;
+            z-index: 1;
+        }
+        .cover-upload-icon {
+            position: absolute;
+            top: 10px; /* Adjusted position */
+            right: 20px;
+            font-size: 24px;
+            color: #4267B2;
+            cursor: pointer;
             z-index: 1;
         }
         .profile-info {
-            margin-top: 200px;
+            margin-top: 220px; /* Adjusted for image height */
             padding: 20px;
             background: white;
             border-radius: 8px;
@@ -81,6 +89,8 @@
         }
         .profile-info h2 {
             margin-bottom: 20px;
+            font-size: 24px;
+            font-weight: bold;
         }
         .profile-info .details {
             margin-bottom: 15px;
@@ -118,6 +128,39 @@
         .form-group input[type="file"] {
             display: none;
         }
+        .photo-feed {
+            margin-top: 20px;
+        }
+        .photo-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .photo-card img {
+            width: 100%;
+            object-fit: cover;
+        }
+        .photo-card .photo-actions {
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .photo-card .photo-actions .like-button, 
+        .photo-card .photo-actions .comment-button {
+            cursor: pointer;
+        }
+        .photo-card .comment-section {
+            padding: 10px;
+        }
+        .photo-card .comment-section .comment {
+            margin-bottom: 10px;
+        }
+        .photo-card .comment-section textarea {
+            width: calc(100% - 20px);
+            margin-right: 10px;
+        }
     </style>
 </head>
 <body>
@@ -148,13 +191,14 @@
                 </label>
                 <input type="file" id="profilePhotoUpload" name="profilePhoto" accept="image/*">
             </div>
+            <label for="coverPhotoUpload" class="cover-upload-icon">
+                <i class="fas fa-camera"></i>
+            </label>
+            <input type="file" id="coverPhotoUpload" name="coverPhoto" accept="image/*">
+
             <div class="profile-info">
                 <h2>Profile</h2>
                 <form id="profileForm">
-                    <div class="form-group">
-                        <label for="coverPhoto">Change Cover Photo:</label>
-                        <input type="file" id="coverPhoto" name="coverPhoto" accept="image/*">
-                    </div>
                     <div class="form-group">
                         <label for="fullName">Full Name:</label>
                         <input type="text" id="fullName" name="fullName" required>
@@ -181,6 +225,23 @@
                 </div>
             </div>
         </div>
+
+        <!-- Photo Upload Section -->
+        <div class="photo-upload-section mt-4">
+            <h3>Upload a Photo</h3>
+            <form id="photoUploadForm">
+                <div class="form-group">
+                    <label for="photoUpload">Select Photo:</label>
+                    <input type="file" id="photoUpload" name="photoUpload" accept="image/*" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Upload Photo</button>
+            </form>
+        </div>
+
+        <!-- Photo Feed -->
+        <div class="photo-feed mt-4" id="photoFeed">
+            <!-- Photos will be dynamically inserted here -->
+        </div>
     </div>
 
     <footer>
@@ -203,6 +264,8 @@
             const profileForm = document.getElementById('profileForm');
             const profileMessage = document.getElementById('profileMessage');
             const token = localStorage.getItem('token');
+            const photoUploadForm = document.getElementById('photoUploadForm');
+            const photoFeed = document.getElementById('photoFeed');
 
             if (!token) {
                 alert('You must be logged in to view this page.');
@@ -226,11 +289,48 @@
                     profileFullName.textContent = userProfile.fullName || 'N/A';
                     profileBio.textContent = userProfile.bio || 'N/A';
                     profileInterests.textContent = userProfile.interests || 'N/A';
-                    profilePhotoImg.src = userProfile.profilePhoto || '';
-                    coverPhotoImg.src = userProfile.coverPhoto || '';
+                    profilePhotoImg.src = userProfile.profilePhoto || 'default-profile.jpg';
+                    coverPhotoImg.src = userProfile.coverPhoto || 'default-cover.jpg';
 
                 } catch (error) {
                     console.error('Error loading profile:', error.message);
+                    profileMessage.textContent = 'Error loading profile: ' + error.message;
+                }
+            }
+
+            async function loadPhotos() {
+                try {
+                    const response = await fetch('http://localhost:3000/photos', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to retrieve photos.');
+                    }
+
+                    const photos = await response.json();
+                    photoFeed.innerHTML = photos.map(photo => `
+                        <div class="photo-card">
+                            <img src="${photo.url}" alt="Photo">
+                            <div class="photo-actions">
+                                <button class="btn btn-light like-button" data-id="${photo.id}"><i class="far fa-heart"></i> Like</button>
+                                <button class="btn btn-light comment-button" data-id="${photo.id}"><i class="far fa-comment"></i> Comment</button>
+                            </div>
+                            <div class="comment-section" id="comments-${photo.id}">
+                                ${photo.comments.map(comment => `
+                                    <div class="comment">
+                                        <strong>${comment.username}:</strong> ${comment.text}
+                                    </div>
+                                `).join('')}
+                                <textarea placeholder="Add a comment..."></textarea>
+                                <button class="btn btn-primary btn-sm comment-submit" data-id="${photo.id}">Post</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } catch (error) {
+                    console.error('Error loading photos:', error.message);
                 }
             }
 
@@ -256,7 +356,83 @@
                 }
             });
 
+            photoUploadForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const formData = new FormData(photoUploadForm);
+                try {
+                    const response = await fetch('http://localhost:3000/photos/upload', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    const result = await response.json();
+                    if (result.error) {
+                        alert('Error uploading photo: ' + result.error);
+                    } else {
+                        loadPhotos(); // Reload photos after upload
+                        photoUploadForm.reset();
+                    }
+                } catch (error) {
+                    console.error('Error uploading photo:', error.message);
+                }
+            });
+
+            photoFeed.addEventListener('click', async (e) => {
+                if (e.target.classList.contains('like-button')) {
+                    const photoId = e.target.getAttribute('data-id');
+                    try {
+                        const response = await fetch(`http://localhost:3000/photos/${photoId}/like`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+
+                        const result = await response.json();
+                        if (result.error) {
+                            alert('Error liking photo: ' + result.error);
+                        } else {
+                            e.target.innerHTML = `<i class="fas fa-heart"></i> Liked`;
+                        }
+                    } catch (error) {
+                        console.error('Error liking photo:', error.message);
+                    }
+                }
+
+                if (e.target.classList.contains('comment-submit')) {
+                    const photoId = e.target.getAttribute('data-id');
+                    const commentText = document.querySelector(`#comments-${photoId} textarea`).value;
+
+                    if (!commentText.trim()) return;
+
+                    try {
+                        const response = await fetch(`http://localhost:3000/photos/${photoId}/comment`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ text: commentText })
+                        });
+
+                        const result = await response.json();
+                        if (result.error) {
+                            alert('Error posting comment: ' + result.error);
+                        } else {
+                            loadPhotos(); // Reload photos after comment
+                        }
+                    } catch (error) {
+                        console.error('Error posting comment:', error.message);
+                    }
+                }
+            });
+
             loadProfile();
+            loadPhotos();
 
             document.getElementById('logoutButton').addEventListener('click', () => {
                 localStorage.removeItem('token');
@@ -267,6 +443,34 @@
             // Trigger file input click when camera icon is clicked
             document.querySelector('.upload-icon').addEventListener('click', () => {
                 document.getElementById('profilePhotoUpload').click();
+            });
+
+            document.querySelector('.cover-upload-icon').addEventListener('click', () => {
+                document.getElementById('coverPhotoUpload').click();
+            });
+
+            // Handle profile photo upload
+            document.getElementById('profilePhotoUpload').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        profilePhotoImg.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Handle cover photo upload
+            document.getElementById('coverPhotoUpload').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        coverPhotoImg.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
             });
         });
     </script>

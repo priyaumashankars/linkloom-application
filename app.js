@@ -18,7 +18,7 @@ const dbPath = path.join(__dirname, 'main.db');
 const jwtSecret = process.env.JWT_SECRET || 'your_jwt_secret'; // Use environment variable for JWT secret
 
 let db; // Database instance
-
+let posts = [];
 // Initialize database
 async function initializeDatabase() {
     try {
@@ -109,9 +109,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Set up multer for file uploads
-const upload = multer({ dest: 'uploads/' });
-
+const mockDatabase = {
+    createPost: async (post) => {
+      if (!post.title || !post.content) {
+        throw new Error('Invalid post data');
+      }
+      return { id: 1, ...post }; // Simulated created post response
+    },
+  };
 const transporter = nodemailer.createTransport({
     service: 'Gmail',
     auth: {
@@ -119,13 +124,22 @@ const transporter = nodemailer.createTransport({
         pass: 'lwqz khjb nwzg cyoj'
     }
 });
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+      cb(null, Date.now() + path.extname(file.originalname));
+    }
+  });
+  const upload = multer({ storage });
 
-function authenticateToken(req, res, next) {
+function verifyToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-
+ 
     if (token == null) return res.sendStatus(401);
-
+ 
     jwt.verify(token, secret, (err, user) => {
         if (err) return res.sendStatus(403);
         req.user = user;
@@ -287,102 +301,97 @@ app.get('/dashboard/:id', async (req, res) => {
         res.status(500).json({ error: 'Failed to serve dashboard page' });
     }
 });
+// Endpoint to get all posts
+app.get('/posts', verifyToken, (req, res) => {
+    res.json(posts);
+  });
+  // Endpoint to create a new post
+  app.post('/posts', verifyToken, upload.single('image'), (req, res) => {
+    const newPost = {
+      id: posts.length + 1,
+      userId: req.userId,
+      text: req.body.text,
+      image: req.file ? `/uploads/${req.file.filename}` : null,
+      likes: 0,
+      comments: []
+    };
+    posts.push(newPost);
+    res.status(201).json(newPost);
+  });
+// app.post('/posts', async (req, res) => {
+//     try {
+//       const { title, content } = req.body;
+      
+//       if (!title || !content) {
+//         return res.status(400).json({ error: 'Title and content are required' });
+//       }
+      
+//       const newPost = await mockDatabase.createPost({ title, content });
+//       res.status(201).json(newPost);
+//     } catch (error) {
+//       console.error('Error creating post:', error.message);
+//       res.status(500).json({ error: 'Failed to create post' });
+//     } 
+//   });
 
-// Post a photo or media
-app.post('/posts', authenticateToken, upload.single('media'), async (req, res) => {
-    const { title, content } = req.body;
-    const userId = req.user.id;
-    const media = req.file;
-
-    if (!title || !content || !media) {
-        return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    const mediaUrl = `/uploads/${media.filename}`;
-    const mediaType = media.mimetype;
-
-    try {
-        const result = await db.run('INSERT INTO posts (userId, title, content, mediaUrl, mediaType, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)', [
-            userId,
-            title,
-            content,
-            mediaUrl,
-            mediaType,
-            Date.now(),
-            Date.now()
-        ]);
-
-        res.json({ message: 'Post created successfully', postId: result.lastID });
-    } catch (error) {
-        console.error('Failed to create post', error);
-        res.status(500).json({ error: 'Failed to create post' });
-    }
-});
-
-// Like a post
-app.post('/posts/:id/like', authenticateToken, async (req, res) => {
-    const postId = parseInt(req.params.id, 10);
-    const userId = req.user.id;
-
-    try {
-        const existingLike = await db.get('SELECT * FROM likes WHERE postId = ? AND userId = ?', [postId, userId]);
-
-        if (existingLike) {
-            return res.status(400).json({ error: 'You have already liked this post' });
-        }
-
-        await db.run('INSERT INTO likes (postId, userId) VALUES (?, ?)', [postId, userId]);
-        res.json({ message: 'Post liked successfully' });
-    } catch (error) {
-        console.error('Failed to like post', error);
-        res.status(500).json({ error: 'Failed to like post' });
-    }
+// Endpoint to like a post
+app.post('/posts/:id/like', verifyToken, (req, res) => {
+  const postId = parseInt(req.params.id, 10);
+  const post = posts.find(p => p.id === postId);
+  if (!post) {
+    return res.status(404).send('Post not found.');
+  }
+  post.likes += 1;
+  res.json(post);
 });
 
 // Dislike a post
-app.post('/posts/:id/dislike', authenticateToken, async (req, res) => {
+// app.post('/posts/:id/dislike', authenticateToken, async (req, res) => {
+//     const postId = parseInt(req.params.id, 10);
+//     const userId = req.user.id;
+
+//     try {
+//         const existingDislike = await db.get('SELECT * FROM dislikes WHERE postId = ? AND userId = ?', [postId, userId]);
+
+//         if (existingDislike) {
+//             return res.status(400).json({ error: 'You have already disliked this post' });
+//         }
+
+//         await db.run('INSERT INTO dislikes (postId, userId) VALUES (?, ?)', [postId, userId]);
+//         res.json({ message: 'Post disliked successfully' });
+//     } catch (error) {
+//         console.error('Failed to dislike post', error);
+//         res.status(500).json({ error: 'Failed to dislike post' });
+//     }
+// });
+
+// Endpoint to add a comment to a post
+app.post('/posts/:id/comments', verifyToken, (req, res) => {
     const postId = parseInt(req.params.id, 10);
-    const userId = req.user.id;
-
-    try {
-        const existingDislike = await db.get('SELECT * FROM dislikes WHERE postId = ? AND userId = ?', [postId, userId]);
-
-        if (existingDislike) {
-            return res.status(400).json({ error: 'You have already disliked this post' });
-        }
-
-        await db.run('INSERT INTO dislikes (postId, userId) VALUES (?, ?)', [postId, userId]);
-        res.json({ message: 'Post disliked successfully' });
-    } catch (error) {
-        console.error('Failed to dislike post', error);
-        res.status(500).json({ error: 'Failed to dislike post' });
+    const post = posts.find(p => p.id === postId);
+    if (!post) {
+      return res.status(404).send('Post not found.');
     }
-});
+    const newComment = {
+      user: users.find(user => user.id === req.userId).fullName,
+      text: req.body.text
+    };
+    post.comments.push(newComment);
+    res.status(201).json(newComment);
+  });
+// Serve uploaded images
+app.use('/uploads', express.static('uploads'));
 
-// Add a comment to a post
-app.post('/posts/:id/comment', authenticateToken, async (req, res) => {
-    const postId = parseInt(req.params.id, 10);
-    const userId = req.user.id;
-    const { comment } = req.body;
-
-    if (!comment) {
-        return res.status(400).json({ error: 'Comment is required' });
+// User authentication (login)
+app.post('/login', (req, res) => {
+    const { email, password } = req.body;
+    const user = users.find(u => u.email === email && u.password === password);
+    if (!user) {
+      return res.status(401).send('Invalid email or password.');
     }
-
-    try {
-        await db.run('INSERT INTO comments (postId, userId, comment, createdAt) VALUES (?, ?, ?, ?)', [
-            postId,
-            userId,
-            comment,
-            Date.now()
-        ]);
-
-        res.json({ message: 'Comment added successfully' });
-    } catch (error) {
-        console.error('Failed to add comment', error);
-        res.status(500).json({ error: 'Failed to add comment' });
-    }
-});
+    const token = jwt.sign({ id: user.id }, 'secret_key', { expiresIn: '1h' });
+    res.json({ token, fullName: user.fullName });
+  });
 
 // Get all posts with comments and likes
 app.get('/posts', async (req, res) => {

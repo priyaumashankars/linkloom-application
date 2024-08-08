@@ -39,12 +39,13 @@
             border-radius: 50px;
             padding: 10px;
             border: none;
+            width: 100%;
         }
         .main-feed {
             background-color: white;
             border-radius: 8px;
             padding: 20px;
-            margin-top: 80px;
+            margin-top: 20px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         .sidebar-column {
@@ -94,6 +95,30 @@
             font-weight: bold;
             margin-bottom: 20px;
         }
+        .main-content {
+            margin-top: 80px;
+        }
+        .left-sidebar, .right-sidebar {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .left-sidebar ul, .right-sidebar ul {
+            list-style: none;
+            padding: 0;
+        }
+        .left-sidebar ul li, .right-sidebar ul li {
+            margin-bottom: 10px;
+        }
+        .left-sidebar ul li a, .right-sidebar ul li a {
+            text-decoration: none;
+            color: #4267B2;
+        }
+        .left-sidebar ul li a:hover, .right-sidebar ul li a:hover {
+            color: #365899;
+        }
     </style>
 </head>
 <body>
@@ -118,111 +143,307 @@
             </ul>
         </div>
     </nav>
-
+ 
     <!-- Main Content -->
-    <div class="container" style="margin-top: 80px;">
+    <div class="container main-content">
         <div class="row">
+            <!-- Left Sidebar -->
+            <div class="col-lg-3">
+                <div class="left-sidebar">
+                    <h5>Friends</h5>
+                    <ul id="friendsList">
+                        <!-- Friends will be populated here -->
+                    </ul>
+                    <h5>Groups</h5>
+                    <ul id="groupsList">
+                        <!-- Groups will be populated here -->
+                    </ul>
+                    <h5>Pages</h5>
+                    <ul id="pagesList">
+                        <!-- Pages will be populated here -->
+                    </ul>
+                </div>
+            </div>
+ 
             <!-- Main Feed -->
-            <div class="col-lg-8">
+            <div class="col-lg-6">
                 <div class="main-feed">
                     <div class="welcome-message">
                         Welcome, <span id="fullName"></span>!
                     </div>
-                    <!-- Additional feed content can go here -->
-                    <p>This is where your main feed or content can be displayed.</p>
+                    <!-- Form to create a new post -->
+                    <form id="postForm">
+                        <div class="mb-3">
+                            <textarea id="postText" class="form-control" placeholder="What's on your mind?" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <input type="file" id="postImage" class="form-control" accept="image/*">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Post</button>
+                    </form>
+                    <hr>
+                    <!-- Posts will be displayed here -->
+                    <div id="postsContainer"></div>
                 </div>
             </div>
-
-            <!-- Sidebar -->
-            <div class="col-lg-4">
-                <div class="row">
-                    <div class="col-12 mb-3">
-                        <div class="sidebar-column">
-                            <h5>Friends</h5>
-                            <ul id="friendsList">
-                                <!-- Friends will be populated here -->
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="col-12 mb-3">
-                        <div class="sidebar-column">
-                            <h5>Groups</h5>
-                            <ul id="groupsList">
-                                <!-- Groups will be populated here -->
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="col-12">
-                        <div class="sidebar-column">
-                            <h5>Pages</h5>
-                            <ul id="pagesList">
-                                <!-- Pages will be populated here -->
-                            </ul>
-                        </div>
-                    </div>
+ 
+            <!-- Right Sidebar -->
+            <div class="col-lg-3">
+                <div class="right-sidebar">
+                    <h5>Sponsored</h5>
+                    <ul>
+                        <li><a href="#">Ad 1</a></li>
+                        <li><a href="#">Ad 2</a></li>
+                        <li><a href="#">Ad 3</a></li>
+                    </ul>
                 </div>
             </div>
         </div>
     </div>
-
+ 
     <footer>
         &copy; 2024 User Dashboard App
     </footer>
-
+ 
     <!-- Bootstrap JS and dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
-
+ 
     <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            const fullNameSpan = document.getElementById('fullName');
-            const token = localStorage.getItem('token');
-
-            if (!token) {
-                alert('You must be logged in to view this page.');
-                window.location.href = '/login.html';
-                return;
+document.addEventListener('DOMContentLoaded'), async () => {
+    const fullNameSpan = document.getElementById('fullName');
+    const token = localStorage.getItem('token');
+ 
+    if (!token) {
+        alert('You must be logged in to view this page.');
+        window.location.href = '/login.html';
+        return;
+    }
+ 
+    try {
+        // Fetch user info
+        const userResponse = await fetch('/protected', {
+           headers: {
+                'Authorization': `Bearer ${token}`
+    }
+});
+ 
+        if (!userResponse.ok) {
+            throw new Error('Failed to authenticate.');
+        }
+ 
+        const user = await userResponse.json();
+        fullNameSpan.textContent = user.fullName || 'User';
+ 
+        // Fetch friends, groups, and pages (mocked as example)
+        const friends = ['Friend 1', 'Friend 2', 'Friend 3'];
+        const groups = ['Group 1', 'Group 2', 'Group 3'];
+        const pages = ['Page 1', 'Page 2', 'Page 3'];
+ 
+        document.getElementById('friendsList').innerHTML = friends.map(friend => `<li><a href="#">${friend}</a></li>`).join('');
+        document.getElementById('groupsList').innerHTML = groups.map(group => `<li><a href="#">${group}</a></li>`).join('');
+        document.getElementById('pagesList').innerHTML = pages.map(page => `<li><a href="#">${page}</a></li>`).join('');
+ 
+    } catch (error) {
+        console.error('Error loading dashboard:', error.message);
+    }
+}
+// document.addEventListener('DOMContentLoaded', async () => {
+//     const fullNameSpan = document.getElementById('fullName');
+//     const token = localStorage.getItem('token');
+ 
+//     if (!token) {
+//         alert('You must be logged in to view this page.');
+//         window.location.href = '/login.html';
+//         return;
+//     }
+ 
+//     try {
+//         // Fetch user info
+//         const userResponse = await fetch('/protected', {
+//             headers: {
+//                 'Authorization': `Bearer ${token}`
+//             }
+//         });
+ 
+//         if (userResponse.status === 401) {
+//             // Unauthorized: Token might be missing or invalid
+//             alert('Authentication failed. Please log in again.');
+//             window.location.href = '/login.html';
+//             return;
+//         }
+ 
+//         if (!userResponse.ok) {
+//             // For other errors, throw a more detailed message
+//             const errorData = await userResponse.json();
+//             throw new Error(`Failed to fetch user info: ${errorData.error || 'Unknown error'}`);
+//         }
+ 
+//         const user = await userResponse.json();
+//         fullNameSpan.textContent = user.fullName || 'User';
+ 
+//         // Fetch friends, groups, and pages (mocked as example)
+//         const friends = ['Friend 1', 'Friend 2', 'Friend 3'];
+//         const groups = ['Group 1', 'Group 2', 'Group 3'];
+//         const pages = ['Page 1', 'Page 2', 'Page 3'];
+ 
+//         document.getElementById('friendsList').innerHTML = friends.map(friend => `<li><a href="#">${friend}</a></li>`).join('');
+//         document.getElementById('groupsList').innerHTML = groups.map(group => `<li><a href="#">${group}</a></li>`).join('');
+//         document.getElementById('pagesList').innerHTML = pages.map(page => `<li><a href="#">${page}</a></li>`).join('');
+ 
+//     } catch (error) {
+//         console.error('Error loading dashboard:', error.message);
+//         // Optionally, redirect to login page if an error occurs
+//         alert('An error occurred while loading the page. Please try again later.');
+//         window.location.href = '/login.html';
+//     }
+// });
+ 
+    document.getElementById('logoutButton').addEventListener('click', () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('fullName');
+        alert('Logout successful!');
+        window.location.href = '/login.html';
+    });
+ 
+    const postForm = document.getElementById('postForm');
+    const postsContainer = document.getElementById('postsContainer');
+ 
+    postForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+ 
+        const postText = document.getElementById('postText').value;
+        const postImage = document.getElementById('postImage').files[0];
+ 
+        const formData = new FormData();
+        formData.append('text', postText);
+        if (postImage) {
+            formData.append('image', postImage);
+        }
+ 
+        try {
+            const response = fetch('/posts', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+ 
+            if (!response.ok) {
+                throw new Error('Failed to create post.');
             }
-
+ 
+            const newPost =  response.json();
+            addPostToFeed(newPost);
+            postForm.reset();
+ 
+        } catch (error) {
+            console.error('Error creating post:', error.message);
+        }
+    });
+ 
+    function addPostToFeed(post) {
+        const postElement = document.createElement('div');
+        postElement.classList.add('post');
+        postElement.innerHTML = `
+            <div>
+                <strong>${post.user}</strong>
+                <p>${post.text}</p>
+                ${post.image ? `<img src="${post.image}" alt="Post Image" class="img-fluid">` : ''}
+                <button class="btn btn-link like-button" data-id="${post.id}">Like (${post.likes})</button>
+                <div class="comments"></div>
+                <div class="comment-form">
+                    <input type="text" class="form-control comment-input" placeholder="Add a comment...">
+                    <button class="btn btn-primary comment-button" data-id="${post.id}">Comment</button>
+                </div>
+            </div>
+        `;
+        postsContainer.prepend(postElement);
+ 
+        postElement.querySelector('.like-button').addEventListener('click', async () => {
             try {
-                // Fetch user info
-                const userResponse = await fetch('/protected', {
+                const response = await fetch(`/posts/${post.id}/like`, {
+                    method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
                 });
-
-                if (!userResponse.ok) {
-                    throw new Error('Failed to authenticate.');
+ 
+                if (!response.ok) {
+                    throw new Error('Failed to like post.');
                 }
-
-                const user = await userResponse.json();
-                fullNameSpan.textContent = user.fullName || 'User';
-
-                // Fetch friends, groups, and pages (mocked as example)
-                // In a real application, you'd replace these with actual API endpoints
-                const friends = ['Friend 1', 'Friend 2', 'Friend 3'];
-                const groups = ['Group 1', 'Group 2', 'Group 3'];
-                const pages = ['Page 1', 'Page 2', 'Page 3'];
-
-                // Populate the sidebar lists
-                document.getElementById('friendsList').innerHTML = friends.map(friend => `<li><a href="#">${friend}</a></li>`).join('');
-                document.getElementById('groupsList').innerHTML = groups.map(group => `<li><a href="#">${group}</a></li>`).join('');
-                document.getElementById('pagesList').innerHTML = pages.map(page => `<li><a href="#">${page}</a></li>`).join('');
-
+ 
+                const updatedPost = await response.json();
+                postElement.querySelector('.like-button').textContent = `Like (${updatedPost.likes})`;
+ 
             } catch (error) {
-                console.error('Error loading dashboard:', error.message);
+                console.error('Error liking post:', error.message);
             }
-
-            document.getElementById('logoutButton').addEventListener('click', () => {
-                localStorage.removeItem('token');
-                localStorage.removeItem('fullName');
-                alert('Logout successful!');
-                window.location.href = '/login.html';
-            });
         });
-    </script>
+ 
+        postElement.querySelector('.comment-button').addEventListener('click', async () => {
+            const commentInput = postElement.querySelector('.comment-input');
+            const commentText = commentInput.value;
+ 
+            if (!commentText) {
+                return;
+            }
+ 
+            try {
+                const response = await fetch(`/posts/${post.id}/comments`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text: commentText })
+                });
+ 
+                if (!response.ok) {
+                    throw new Error('Failed to comment on post.');
+                }
+ 
+                const newComment = await response.json();
+                const commentElement = document.createElement('div');
+                commentElement.classList.add('comment');
+                commentElement.innerHTML = `<p><strong>${newComment.user}</strong>: ${newComment.text}</p>`;
+                postElement.querySelector('.comments').append(commentElement);
+                commentInput.value = '';
+ 
+            } catch (error) {
+                console.error('Error commenting on post:', error.message);
+            }
+        });
+    }
+    // async function createPost(postText, postImage) {
+    // const token = localStorage.getItem('token');
+    
+    // const formData = new FormData();
+    // formData.append('text', postText);
+    // if (postImage) {
+    //     formData.append('image', postImage);
+    // }
+    try {
+        const response = await fetch('/posts', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+ 
+        if (!response.ok) {
+            throw new Error('Failed to load posts.');
+        }
+ 
+        const posts = await response.json();
+        posts.forEach(addPostToFeed);
+ 
+    } catch (error) {
+        console.error('Error loading posts:', error.message);
+    }
+
+</script>
 </body>
 </html>
+ 
+ 
