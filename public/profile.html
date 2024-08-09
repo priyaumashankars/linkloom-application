@@ -49,9 +49,8 @@
         }
         .profile-photo-container {
             position: absolute;
-            top: 200px; /* Adjusted position */
+            top: 220px; /* Adjusted position */
             left: 20px;
-            border: 5px solid white;
             border-radius: 50%;
             overflow: hidden;
         }
@@ -62,15 +61,15 @@
             border: 5px solid white;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        .upload-icon {
+        /* .upload-icon {
             position: absolute;
             top: 200px; /* Adjusted position */
-            left: 20px;
+            /* left: 20px;
             font-size: 24px;
             color: #4267B2;
             cursor: pointer;
             z-index: 1;
-        }
+        } */ */
         .cover-upload-icon {
             position: absolute;
             top: 10px; /* Adjusted position */
@@ -161,6 +160,21 @@
             width: calc(100% - 20px);
             margin-right: 10px;
         }
+        .create-post {
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .create-post textarea {
+            resize: vertical;
+        }
+        .create-post img {
+            max-width: 100%;
+            margin-top: 10px;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
@@ -200,9 +214,9 @@
                 <h2>Profile</h2>
                 <form id="profileForm">
                     <div class="form-group">
-                        <label for="fullName">Full Name:</label>
+                        <!-- <label for="fullName">Full Name:</label>
                         <input type="text" id="fullName" name="fullName" required>
-                    </div>
+                    </div> -->
                     <div class="form-group">
                         <label for="bio">Bio:</label>
                         <textarea id="bio" name="bio" required></textarea>
@@ -214,265 +228,94 @@
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                 </form>
                 <div id="profileMessage" class="mt-3"></div>
-                <div class="details mt-3">
-                    <strong>Full Name:</strong> <span id="profileFullName"></span>
-                </div>
-                <div class="details">
-                    <strong>Bio:</strong> <span id="profileBio"></span>
-                </div>
-                <div class="details">
-                    <strong>Interests:</strong> <span id="profileInterests"></span>
-                </div>
             </div>
         </div>
-
-        <!-- Photo Upload Section -->
-        <div class="photo-upload-section mt-4">
-            <h3>Upload a Photo</h3>
-            <form id="photoUploadForm">
+        <div class="create-post mt-4">
+            <h3>Create a Post</h3>
+            <form id="createPostForm">
                 <div class="form-group">
-                    <label for="photoUpload">Select Photo:</label>
-                    <input type="file" id="photoUpload" name="photoUpload" accept="image/*" required>
+                    <label for="postCaption">Caption:</label>
+                    <textarea id="postCaption" name="caption" placeholder="What's on your mind?" required></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary">Upload Photo</button>
+                <div class="form-group">
+                    <label for="postPhotoUpload">Select Photo:</label>
+                    <input type="file" id="postPhotoUpload" name="postPhoto" accept="image/*">
+                    <img id="postPreview" src="" alt="Photo Preview" style="display: none;">
+                </div>
+                <button type="submit" class="btn btn-primary">Post</button>
             </form>
         </div>
-
+        
         <!-- Photo Feed -->
         <div class="photo-feed mt-4" id="photoFeed">
             <!-- Photos will be dynamically inserted here -->
         </div>
-    </div>
-
-    <footer>
-        &copy; 2024 User Dashboard App
-    </footer>
-
-    <!-- Bootstrap JS and dependencies -->
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
-    <!-- FontAwesome JS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/js/all.min.js"></script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            const profileFullName = document.getElementById('profileFullName');
-            const profileBio = document.getElementById('profileBio');
-            const profileInterests = document.getElementById('profileInterests');
-            const profilePhotoImg = document.getElementById('profilePhotoImg');
-            const coverPhotoImg = document.getElementById('coverPhotoImg');
-            const profileForm = document.getElementById('profileForm');
-            const profileMessage = document.getElementById('profileMessage');
-            const token = localStorage.getItem('token');
-            const photoUploadForm = document.getElementById('photoUploadForm');
-            const photoFeed = document.getElementById('photoFeed');
-
-            if (!token) {
-                alert('You must be logged in to view this page.');
-                window.location.href = '/login.html';
-                return;
-            }
-
-            async function loadProfile() {
-                try {
-                    const response = await fetch('http://localhost:3000/profile', {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Failed to retrieve profile data.');
-                    }
-
-                    const userProfile = await response.json();
-                    profileFullName.textContent = userProfile.fullName || 'N/A';
-                    profileBio.textContent = userProfile.bio || 'N/A';
-                    profileInterests.textContent = userProfile.interests || 'N/A';
-                    profilePhotoImg.src = userProfile.profilePhoto || 'default-profile.jpg';
-                    coverPhotoImg.src = userProfile.coverPhoto || 'default-cover.jpg';
-
-                } catch (error) {
-                    console.error('Error loading profile:', error.message);
-                    profileMessage.textContent = 'Error loading profile: ' + error.message;
-                }
-            }
-
-            async function loadPhotos() {
-                try {
-                    const response = await fetch('http://localhost:3000/photos', {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Failed to retrieve photos.');
-                    }
-
-                    const photos = await response.json();
-                    photoFeed.innerHTML = photos.map(photo => `
-                        <div class="photo-card">
-                            <img src="${photo.url}" alt="Photo">
-                            <div class="photo-actions">
-                                <button class="btn btn-light like-button" data-id="${photo.id}"><i class="far fa-heart"></i> Like</button>
-                                <button class="btn btn-light comment-button" data-id="${photo.id}"><i class="far fa-comment"></i> Comment</button>
-                            </div>
-                            <div class="comment-section" id="comments-${photo.id}">
-                                ${photo.comments.map(comment => `
-                                    <div class="comment">
-                                        <strong>${comment.username}:</strong> ${comment.text}
-                                    </div>
-                                `).join('')}
-                                <textarea placeholder="Add a comment..."></textarea>
-                                <button class="btn btn-primary btn-sm comment-submit" data-id="${photo.id}">Post</button>
-                            </div>
-                        </div>
-                    `).join('');
-                } catch (error) {
-                    console.error('Error loading photos:', error.message);
-                }
-            }
-
-            profileForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-
-                const formData = new FormData(profileForm);
-                try {
-                    const response = await fetch('http://localhost:3000/profile/update', {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-
-                    const result = await response.json();
-                    profileMessage.textContent = result.error || 'Profile updated successfully!';
-                    loadProfile();
-
-                } catch (error) {
-                    console.error('Error updating profile:', error.message);
-                }
-            });
-
-            photoUploadForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-
-                const formData = new FormData(photoUploadForm);
-                try {
-                    const response = await fetch('http://localhost:3000/photos/upload', {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-
-                    const result = await response.json();
-                    if (result.error) {
-                        alert('Error uploading photo: ' + result.error);
-                    } else {
-                        loadPhotos(); // Reload photos after upload
-                        photoUploadForm.reset();
-                    }
-                } catch (error) {
-                    console.error('Error uploading photo:', error.message);
-                }
-            });
-
-            photoFeed.addEventListener('click', async (e) => {
-                if (e.target.classList.contains('like-button')) {
-                    const photoId = e.target.getAttribute('data-id');
-                    try {
-                        const response = await fetch(`http://localhost:3000/photos/${photoId}/like`, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${token}`
-                            }
-                        });
-
-                        const result = await response.json();
-                        if (result.error) {
-                            alert('Error liking photo: ' + result.error);
-                        } else {
-                            e.target.innerHTML = `<i class="fas fa-heart"></i> Liked`;
-                        }
-                    } catch (error) {
-                        console.error('Error liking photo:', error.message);
-                    }
-                }
-
-                if (e.target.classList.contains('comment-submit')) {
-                    const photoId = e.target.getAttribute('data-id');
-                    const commentText = document.querySelector(`#comments-${photoId} textarea`).value;
-
-                    if (!commentText.trim()) return;
-
-                    try {
-                        const response = await fetch(`http://localhost:3000/photos/${photoId}/comment`, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ text: commentText })
-                        });
-
-                        const result = await response.json();
-                        if (result.error) {
-                            alert('Error posting comment: ' + result.error);
-                        } else {
-                            loadPhotos(); // Reload photos after comment
-                        }
-                    } catch (error) {
-                        console.error('Error posting comment:', error.message);
-                    }
-                }
-            });
-
-            loadProfile();
-            loadPhotos();
-
-            document.getElementById('logoutButton').addEventListener('click', () => {
-                localStorage.removeItem('token');
-                alert('Logout successful!');
-                window.location.href = '/login.html';
-            });
-
-            // Trigger file input click when camera icon is clicked
-            document.querySelector('.upload-icon').addEventListener('click', () => {
-                document.getElementById('profilePhotoUpload').click();
-            });
-
-            document.querySelector('.cover-upload-icon').addEventListener('click', () => {
-                document.getElementById('coverPhotoUpload').click();
-            });
-
-            // Handle profile photo upload
-            document.getElementById('profilePhotoUpload').addEventListener('change', (e) => {
-                const file = e.target.files[0];
+        
+        <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const createPostForm = document.getElementById('createPostForm');
+            const postPhotoUpload = document.getElementById('postPhotoUpload');
+            const postPreview = document.getElementById('postPreview');
+            
+            // Preview photo before posting
+            postPhotoUpload.addEventListener('change', (event) => {
+                const file = event.target.files[0];
                 if (file) {
                     const reader = new FileReader();
-                    reader.onload = function(event) {
-                        profilePhotoImg.src = event.target.result;
+                    reader.onload = () => {
+                        postPreview.src = reader.result;
+                        postPreview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    postPreview.src = '';
+                    postPreview.style.display = 'none';
+                }
+            });
+
+            // Handle form submission
+            createPostForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                // Handle the post creation logic here
+                console.log('Post created');
+                // Example code to clear the form
+                createPostForm.reset();
+                postPreview.style.display = 'none';
+            });
+
+            // Profile Photo Upload
+            document.getElementById('profilePhotoUpload').addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        document.getElementById('profilePhotoImg').src = reader.result;
                     };
                     reader.readAsDataURL(file);
                 }
             });
 
-            // Handle cover photo upload
-            document.getElementById('coverPhotoUpload').addEventListener('change', (e) => {
-                const file = e.target.files[0];
+            // Cover Photo Upload
+            document.getElementById('coverPhotoUpload').addEventListener('change', (event) => {
+                const file = event.target.files[0];
                 if (file) {
                     const reader = new FileReader();
-                    reader.onload = function(event) {
-                        coverPhotoImg.src = event.target.result;
+                    reader.onload = () => {
+                        document.getElementById('coverPhotoImg').src = reader.result;
                     };
                     reader.readAsDataURL(file);
                 }
             });
         });
-    </script>
+        </script>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        &copy; 2024 LINKLOOM. All rights reserved.
+    </footer>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

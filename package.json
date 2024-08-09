@@ -2,6 +2,7 @@
   "name": "facebook",
   "version": "1.0.0",
   "main": "index.js",
+ 
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -18,5 +19,10 @@
     "nodemailer": "^6.9.14",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7"
+  
+  
   }
 }
+
+
+
