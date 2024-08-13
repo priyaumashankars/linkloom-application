@@ -289,7 +289,19 @@ app.post('/reset/password', async (req, res) => {
         res.status(500).json({ error: 'Password reset failed' });
     }
 });
-
+app.get('/protected', verifyToken, (req, res) => {
+    res.json(req.user);
+});
+app.get('/protected', verifyToken, async (req, res) => {
+    try {
+        const user = await db.get('SELECT id, fullName FROM users WHERE id = ?', [req.user.id]);
+        res.json(user);
+    } catch (error) {
+        console.error('Failed to get user details:', error);
+        res.status(500).json({ error: 'Failed to get user details' });
+    }
+});
+ 
 // Serve dashboard page
 app.get('/dashboard/:id', async (req, res) => {
     const userId = parseInt(req.params.id, 10);
@@ -335,15 +347,31 @@ app.get('/posts', verifyToken, (req, res) => {
 //   });
 
 // Endpoint to like a post
-app.post('/posts/:id/like', verifyToken, (req, res) => {
-  const postId = parseInt(req.params.id, 10);
-  const post = posts.find(p => p.id === postId);
-  if (!post) {
-    return res.status(404).send('Post not found.');
-  }
-  post.likes += 1;
-  res.json(post);
+// Endpoint to like a post
+app.post('/posts/:id/like', verifyToken, async (req, res) => {
+    const postId = parseInt(req.params.id, 10);
+    const userId = req.user.id; // Extract userId from req.user set by verifyToken
+
+    try {
+        const post = await db.get('SELECT * FROM posts WHERE id = ?', [postId]);
+        if (!post) {
+            return res.status(404).send('Post not found.');
+        }
+
+        const existingLike = await db.get('SELECT * FROM likes WHERE postId = ? AND userId = ?', [postId, userId]);
+        if (existingLike) {
+            return res.status(400).json({ error: 'You have already liked this post.' });
+        }
+
+        await db.run('INSERT INTO likes (postId, userId) VALUES (?, ?)', [postId, userId]);
+
+        res.json({ message: 'Post liked successfully' });
+    } catch (error) {
+        console.error('Failed to like post', error);
+        res.status(500).json({ error: 'Failed to like post' });
+    }
 });
+
 
 // Dislike a post
 // app.post('/posts/:id/dislike', authenticateToken, async (req, res) => {
