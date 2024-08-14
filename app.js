@@ -118,13 +118,16 @@ const mockDatabase = {
       return { id: 1, ...post }; // Simulated created post response
     },
   };
-const transporter = nodemailer.createTransport({
-    service: 'Gmail',
-    auth: {
-        user: 'hsbl480085@gmail.com',
-        pass: 'lwqz khjb nwzg cyoj'
-    }
-});
+  const nodemailer = require('nodemailer');
+  require('dotenv').config(); // Load environment variables from .env file
+   
+  const transporter = nodemailer.createTransport({
+      service: 'Gmail',
+      auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS
+      }
+  });
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
       cb(null, 'uploads/');
