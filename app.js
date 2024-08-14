@@ -118,7 +118,6 @@ const mockDatabase = {
       return { id: 1, ...post }; // Simulated created post response
     },
   };
-  const nodemailer = require('nodemailer');
   require('dotenv').config(); // Load environment variables from .env file
    
   const transporter = nodemailer.createTransport({
