@@ -1,3 +1,4 @@
+require('dotenv').config()
 const express = require('express');
 const { open } = require('sqlite');
 const sqlite3 = require('sqlite3').verbose();
@@ -13,7 +14,7 @@ const fs = require('fs');
 const secret = process.env.JWT_SECRET || 'your_jwt_secret'; // Use environment variable for JWT secret
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 const dbPath = path.join(__dirname, 'main.db');
 const jwtSecret = process.env.JWT_SECRET || 'your_jwt_secret'; // Use environment variable for JWT secret
 
@@ -146,7 +147,9 @@ function verifyToken(req, res, next) {
         next();
     });
 }
-
+app.get('/',(req,res) => {
+    res.redirect('/login')
+})
 // User signup
 app.post('/signup', async (req, res) => {
     const { fullName, Email, Password } = req.body;
@@ -190,7 +193,6 @@ app.post('/signup', async (req, res) => {
         res.status(500).json({ error: 'Signup failed' });
     }
 });
-
 // OTP verification
 app.post('/verify/otp', async (req, res) => {
     const { otp } = req.body;
