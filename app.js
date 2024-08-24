@@ -433,6 +433,18 @@ app.get('/posts', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch posts' });
     }
 });
+//delete a post
+app.delete('/posts/:id', verifyToken, (req, res) => {
+    const postId = parseInt(req.params.id, 10);
+    const postIndex = posts.findIndex(post => post.id === postId);
+
+    if (postIndex !== -1) {
+        posts.splice(postIndex, 1);
+        res.status(200).json({ message: 'Post deleted successfully' });
+    } else {
+        res.status(404).json({ error: 'Post not found' });
+    }
+});
 
 app.listen(port, () => {
     console.log(`Server is running at http://localhost:${port}`);

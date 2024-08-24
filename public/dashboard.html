@@ -11,6 +11,10 @@
             font-family: Arial, sans-serif;
             background-color: #f0f2f5;
             margin: 0;
+            background-image: url('logo.jpg');
+            background-size: cover;  /* Cover the entire page */
+            background-position: center;  /* Center the image */
+            background-repeat: no-repeat;  /* Prevent repeating the image */
         }
         .navbar {
             background-color: #9525b8;
@@ -128,7 +132,7 @@
             max-width: 100%;
             height: auto;
         }
-        .like-button, .dislike-button, .comment-button {
+        .like-button, .dislike-button, .comment-button, .delete-button {
             margin-top: 10px;
         }
         .comments {
@@ -141,12 +145,6 @@
         .post-author {
             font-weight: bold;
             margin-bottom: 5px;
-        }
-        body {
-            background-image: url('logo.jpg');
-            background-size: cover;  /* Cover the entire page */
-            background-position: center;  /* Center the image */
-            background-repeat: no-repeat;  /* Prevent repeating the image */
         }
     </style>
 </head>
@@ -279,6 +277,7 @@
                             ${post.image ? `<img src="${post.image}" alt="Post Image">` : ''}
                             <button class="btn btn-secondary like-button" onclick="likePost(${post.id})">Like</button>
                             <button class="btn btn-secondary dislike-button" onclick="dislikePost(${post.id})">Dislike</button>
+                            <button class="btn btn-danger delete-button" onclick="deletePost(${post.id})">Delete</button>
                             <div class="comments">
                                 <div class="comment">
                                     <input type="text" placeholder="Add a comment" id="comment-${post.id}">
@@ -348,6 +347,7 @@
                 ${post.image ? `<img src="${post.image}" alt="Post Image">` : ''}
                 <button class="btn btn-secondary like-button" onclick="likePost(${post.id})">Like</button>
                 <button class="btn btn-secondary dislike-button" onclick="dislikePost(${post.id})">Dislike</button>
+                <button class="btn btn-danger delete-button" onclick="deletePost(${post.id})">Delete</button>
                 <div class="comments">
                     <div class="comment">
                         <input type="text" placeholder="Add a comment" id="comment-${post.id}">
@@ -413,51 +413,69 @@
     }
 
     async function addComment(postId) {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        alert('You must be logged in to comment on a post.');
-        return;
-    }
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('You must be logged in to comment on a post.');
+            return;
+        }
 
-    const commentInput = document.getElementById(`comment-${postId}`);
-    const commentText = commentInput.value.trim();  // Trim whitespace
+        const commentInput = document.getElementById(`comment-${postId}`);
+        const commentText = commentInput.value.trim();  // Trim whitespace
 
-    if (!commentText) {
-        alert('Comment cannot be empty.');
-        return;
-    }
+        if (!commentText) {
+            alert('Comment cannot be empty.');
+            return;
+        }
 
-    try {
-        const response = await fetch(`/posts/${postId}/comments`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ comment: commentText })
-            
-        });
-        if (response.ok) {
-                alert('Comment added to the post successfully');
+        try {
+            const response = await fetch(`/posts/${postId}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ comment: commentText })
+            });
+            if (response.ok) {
+                commentInput.value = '';  // Clear the input field
+                const commentsDiv = document.getElementById(`comments-${postId}`);
+                commentsDiv.innerHTML += `<div class="comment">${commentText}</div>`;
             } else {
                 const error = await response.json();
                 alert(error.error);
             }
-
-        if (response.ok) {
-            commentInput.value = '';  // Clear the input field
-            const commentsDiv = document.getElementById(`comments-${postId}`);
-            commentsDiv.innerHTML += `<div class="comment">${commentText}</div>`;
-        
-        } else {
-            const error = await response.json();
-            alert(error.error);
-        } 
-        
-    } catch (error) {
-        console.error('Error:', error);
+        } catch (error) {
+            console.error('Error:', error);
+        }
     }
-}
+
+    async function deletePost(postId) {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('You must be logged in to delete a post.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/posts/${postId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                document.getElementById(`post-${postId}`).remove();
+                alert('Post deleted successfully');
+            } else {
+                const error = await response.json();
+                alert(error.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
     document.getElementById('logoutButton').addEventListener('click', () => {
         localStorage.removeItem('token');
         localStorage.removeItem('fullName');
