@@ -13,7 +13,7 @@
             margin: 0;
         }
         .navbar {
-            background-color: #4267B2;
+            background-color: #9525b8;
             padding: 10px;
             position: fixed;
             top: 0;
@@ -67,22 +67,22 @@
         }
         .sidebar-column ul li a {
             text-decoration: none;
-            color: #4267B2;
+            color: #b989e0;
             font-weight: bold;
         }
         .sidebar-column ul li a:hover {
-            color: #365899;
+            color: #b989e0;
         }
         .btn-primary {
-            background-color: #4267B2;
-            border-color: #4267B2;
+            background-color: #b989e0;
+            border-color: #b989e0;
         }
         .btn-primary:hover {
-            background-color: #365899;
-            border-color: #365899;
+            background-color: #b989e0;
+            border-color: #b989e0;
         }
         footer {
-            background-color: #4267B2;
+            background-color: #b989e0;
             color: white;
             text-align: center;
             padding: 10px;
@@ -128,7 +128,7 @@
             max-width: 100%;
             height: auto;
         }
-        .like-button, .comment-button {
+        .like-button, .dislike-button, .comment-button {
             margin-top: 10px;
         }
         .comments {
@@ -137,6 +137,16 @@
         .comment {
             border-top: 1px solid #ddd;
             padding-top: 5px;
+        }
+        .post-author {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        body {
+            background-image: url('logo.jpg');
+            background-size: cover;  /* Cover the entire page */
+            background-position: center;  /* Center the image */
+            background-repeat: no-repeat;  /* Prevent repeating the image */
         }
     </style>
 </head>
@@ -202,17 +212,6 @@
                 <div id="postsContainer"></div>
             </div>
 
-            <!-- Right Sidebar -->
-            <div class="col-lg-3">
-                <div class="right-sidebar">
-                    <h5>Sponsored</h5>
-                    <ul>
-                        <li><a href="#">Ad 1</a></li>
-                        <li><a href="#">Ad 2</a></li>
-                        <li><a href="#">Ad 3</a></li>
-                    </ul>
-                </div>
-            </div>
         </div>
     </div>
  
@@ -263,7 +262,7 @@
                 document.getElementById('groupsList').innerHTML = groups.map(group => `<li><a href="#">${group}</a></li>`).join('');
                 document.getElementById('pagesList').innerHTML = pages.map(page => `<li><a href="#">${page}</a></li>`).join('');
 
-                // Fetch posts
+                // Fetch posts from the server
                 const postsResponse = await fetch('/posts', {
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -272,49 +271,50 @@
 
                 if (postsResponse.ok) {
                     const posts = await postsResponse.json();
-                    posts.forEach(post => addPostToFeed(post, fullName));
-                } else if (postsResponse.status === 404) {
-                    console.error('Endpoint /posts not found');
-                    alert('Endpoint /posts not found. Please check the server configuration.');
+                    const postsContainer = document.getElementById('postsContainer');
+                    postsContainer.innerHTML = posts.map(post => `
+                        <div class="post" id="post-${post.id}">
+                            <div class="post-author">${fullName}</div>
+                            <p>${post.text}</p>
+                            ${post.image ? `<img src="${post.image}" alt="Post Image">` : ''}
+                            <button class="btn btn-secondary like-button" onclick="likePost(${post.id})">Like</button>
+                            <button class="btn btn-secondary dislike-button" onclick="dislikePost(${post.id})">Dislike</button>
+                            <div class="comments">
+                                <div class="comment">
+                                    <input type="text" placeholder="Add a comment" id="comment-${post.id}">
+                                    <button class="btn btn-secondary comment-button" onclick="addComment(${post.id})">Comment</button>
+                                </div>
+                                <!-- Comments will be populated here -->
+                                <div id="comments-${post.id}"></div>
+                            </div>
+                        </div>
+                    `).join('');
                 } else {
-                    throw new Error(`Failed to load posts. Status: ${postsResponse.status}`);
+                    console.error('Failed to fetch posts');
                 }
-            } else if (userResponse.status === 404) {
-                console.error('Endpoint /protected not found');
-                alert('Endpoint /protected not found. Please check the server configuration.');
-                window.location.href = '/login.html';
             } else {
-                throw new Error(`Failed to authenticate. Status: ${userResponse.status}`);
+                console.error('Failed to fetch user info');
             }
         } catch (error) {
-            console.error('Error loading dashboard:', error.message);
-            alert('An error occurred while loading the page. Please try again later.');
-            window.location.href = '/login.html';
+            console.error('Error:', error);
         }
     });
 
-    document.getElementById('logoutButton').addEventListener('click', () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('fullName');
-        alert('Logout successful!');
-        window.location.href = '/login.html';
-    });
+    document.getElementById('postForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-    const postForm = document.getElementById('postForm');
-    const postsContainer = document.getElementById('postsContainer');
-
-    postForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('You must be logged in to create a post.');
+            return;
+        }
 
         const postText = document.getElementById('postText').value;
         const postImage = document.getElementById('postImage').files[0];
-        const token = localStorage.getItem('token');
 
         const formData = new FormData();
         formData.append('text', postText);
-        if (postImage) {
-            formData.append('image', postImage);
-        }
+        if (postImage) formData.append('image', postImage);
 
         try {
             const response = await fetch('/posts', {
@@ -325,97 +325,144 @@
                 body: formData
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to create post.');
+            if (response.ok) {
+                const newPost = await response.json();
+                addPostToFeed(newPost);
+                document.getElementById('postText').value = '';
+                document.getElementById('postImage').value = '';
+            } else {
+                console.error('Failed to create post');
             }
-
-            const newPost = await response.json();
-            addPostToFeed(newPost, localStorage.getItem('fullName'));
-            postForm.reset();
-
         } catch (error) {
-            console.error('Error creating post:', error.message);
+            console.error('Error:', error);
         }
     });
 
-    function addPostToFeed(post, userName) {
-        const token = localStorage.getItem('token');
-        const postElement = document.createElement('div');
-        postElement.classList.add('post');
-        postElement.innerHTML = `
-            <div>
-                <strong>${userName}</strong>
+    function addPostToFeed(post) {
+        const fullName = localStorage.getItem('fullName');
+        const postsContainer = document.getElementById('postsContainer');
+        postsContainer.innerHTML += `
+            <div class="post" id="post-${post.id}">
+                <div class="post-author">${fullName}</div>
                 <p>${post.text}</p>
-                ${post.image ? `<img src="${post.image}" alt="Post Image" class="img-fluid">` : ''}
-                <button class="btn btn-link like-button" data-id="${post.id}">Like (${post.likes})</button>
+                ${post.image ? `<img src="${post.image}" alt="Post Image">` : ''}
+                <button class="btn btn-secondary like-button" onclick="likePost(${post.id})">Like</button>
+                <button class="btn btn-secondary dislike-button" onclick="dislikePost(${post.id})">Dislike</button>
                 <div class="comments">
-                    ${post.comments.map(comment => `<div class="comment"><p><strong>${comment.user}</strong>: ${comment.text}</p></div>`).join('')}
-                </div>
-                <div class="comment-form">
-                    <input type="text" class="form-control comment-input" placeholder="Add a comment...">
-                    <button class="btn btn-primary comment-button" data-id="${post.id}">Comment</button>
+                    <div class="comment">
+                        <input type="text" placeholder="Add a comment" id="comment-${post.id}">
+                        <button class="btn btn-secondary comment-button" onclick="addComment(${post.id})">Comment</button>
+                    </div>
+                    <!-- Comments will be populated here -->
+                    <div id="comments-${post.id}"></div>
                 </div>
             </div>
         `;
-        postsContainer.prepend(postElement);
-
-        postElement.querySelector('.like-button').addEventListener('click', async () => {
-            const postId = post.id;
-
-            try {
-                const response = await fetch(`/posts/${postId}/like`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to like post.');
-                }
-
-                const updatedPost = await response.json();
-                postElement.querySelector('.like-button').textContent = `Like (${updatedPost.likes})`;
-
-            } catch (error) {
-                console.error('Error liking post:', error.message);
-            }
-        });
-
-        postElement.querySelector('.comment-button').addEventListener('click', async () => {
-            const commentInput = postElement.querySelector('.comment-input');
-            const commentText = commentInput.value;
-
-            if (!commentText) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`/posts/${post.id}/comments`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ text: commentText })
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to comment on post.');
-                }
-
-                const newComment = await response.json();
-                const commentElement = document.createElement('div');
-                commentElement.classList.add('comment');
-                commentElement.innerHTML = `<p><strong>${newComment.user}</strong>: ${newComment.text}</p>`;
-                postElement.querySelector('.comments').append(commentElement);
-                commentInput.value = '';
-
-            } catch (error) {
-                console.error('Error commenting on post:', error.message);
-            }
-        });
     }
+
+    async function likePost(postId) {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('You must be logged in to like a post.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/posts/${postId}/like`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                alert('Post liked successfully');
+            } else {
+                const error = await response.json();
+                alert(error.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    async function dislikePost(postId) {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('You must be logged in to dislike a post.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/posts/${postId}/dislike`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                alert('Post disliked successfully');
+            } else {
+                const error = await response.json();
+                alert(error.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    async function addComment(postId) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        alert('You must be logged in to comment on a post.');
+        return;
+    }
+
+    const commentInput = document.getElementById(`comment-${postId}`);
+    const commentText = commentInput.value.trim();  // Trim whitespace
+
+    if (!commentText) {
+        alert('Comment cannot be empty.');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/posts/${postId}/comments`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ comment: commentText })
+            
+        });
+        if (response.ok) {
+                alert('Comment added to the post successfully');
+            } else {
+                const error = await response.json();
+                alert(error.error);
+            }
+
+        if (response.ok) {
+            commentInput.value = '';  // Clear the input field
+            const commentsDiv = document.getElementById(`comments-${postId}`);
+            commentsDiv.innerHTML += `<div class="comment">${commentText}</div>`;
+        
+        } else {
+            const error = await response.json();
+            alert(error.error);
+        } 
+        
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+    document.getElementById('logoutButton').addEventListener('click', () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('fullName');
+        window.location.href = '/login.html';
+    });
     </script>
 </body>
 </html>

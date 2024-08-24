@@ -20,6 +20,7 @@ const jwtSecret = process.env.JWT_SECRET || 'your_jwt_secret'; // Use environmen
 
 let db; // Database instance
 let posts = [];
+let users = [];
 // Initialize database
 async function initializeDatabase() {
     try {
@@ -67,13 +68,15 @@ async function initializeDatabase() {
         `);
 
         await db.exec(`
-            CREATE TABLE IF NOT EXISTS dislikes (
+            CREATE TABLE IF NOT EXISTS comments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 postId INTEGER,
                 userId INTEGER,
+                comment TEXT,   
+                createdAt INTEGER,
                 FOREIGN KEY (postId) REFERENCES posts(id),
                 FOREIGN KEY (userId) REFERENCES users(id)
-            );
+);
         `);
 
         await db.exec(`
@@ -334,41 +337,22 @@ app.get('/posts', verifyToken, (req, res) => {
     posts.push(newPost);
     res.status(201).json(newPost);
   });
-// app.post('/posts', async (req, res) => {
-//     try {
-//       const { title, content } = req.body;
-      
-//       if (!title || !content) {
-//         return res.status(400).json({ error: 'Title and content are required' });
-//       }
-      
-//       const newPost = await mockDatabase.createPost({ title, content });
-//       res.status(201).json(newPost);
-//     } catch (error) {
-//       console.error('Error creating post:', error.message);
-//       res.status(500).json({ error: 'Failed to create post' });
-//     } 
-//   });
 
-// Endpoint to like a post
 // Endpoint to like a post
 app.post('/posts/:id/like', verifyToken, async (req, res) => {
     const postId = parseInt(req.params.id, 10);
-    const userId = req.user.id; // Extract userId from req.user set by verifyToken
+    const userId = req.user.id;
 
     try {
-        const post = await db.get('SELECT * FROM posts WHERE id = ?', [postId]);
-        if (!post) {
-            return res.status(404).send('Post not found.');
-        }
-
+        // Check if the user has already liked the post
         const existingLike = await db.get('SELECT * FROM likes WHERE postId = ? AND userId = ?', [postId, userId]);
+
         if (existingLike) {
-            return res.status(400).json({ error: 'You have already liked this post.' });
+            return res.status(400).json({ error: 'You have already liked this post' });
         }
 
+        // Insert the like into the database
         await db.run('INSERT INTO likes (postId, userId) VALUES (?, ?)', [postId, userId]);
-
         res.json({ message: 'Post liked successfully' });
     } catch (error) {
         console.error('Failed to like post', error);
@@ -377,40 +361,47 @@ app.post('/posts/:id/like', verifyToken, async (req, res) => {
 });
 
 
-// Dislike a post
-// app.post('/posts/:id/dislike', authenticateToken, async (req, res) => {
-//     const postId = parseInt(req.params.id, 10);
-//     const userId = req.user.id;
+//Dislike a post
+app.post('/posts/:id/dislike', verifyToken, async (req, res) => {
+    const postId = parseInt(req.params.id, 10);
+    const userId = req.user.id;
 
-//     try {
-//         const existingDislike = await db.get('SELECT * FROM dislikes WHERE postId = ? AND userId = ?', [postId, userId]);
+    try {
+        const existingDislike = await db.get('SELECT * FROM dislikes WHERE postId = ? AND userId = ?', [postId, userId]);
 
-//         if (existingDislike) {
-//             return res.status(400).json({ error: 'You have already disliked this post' });
-//         }
+        if (existingDislike) {
+            return res.status(400).json({ error: 'You have already disliked this post' });
+        }
 
-//         await db.run('INSERT INTO dislikes (postId, userId) VALUES (?, ?)', [postId, userId]);
-//         res.json({ message: 'Post disliked successfully' });
-//     } catch (error) {
-//         console.error('Failed to dislike post', error);
-//         res.status(500).json({ error: 'Failed to dislike post' });
-//     }
-// });
+        await db.run('INSERT INTO dislikes (postId, userId) VALUES (?, ?)', [postId, userId]);
+        res.json({ message: 'Post disliked successfully' });
+    } catch (error) {
+        console.error('Failed to dislike post', error);
+        res.status(500).json({ error: 'Failed to dislike post' });
+    }
+});
 
 // Endpoint to add a comment to a post
-app.post('/posts/:id/comments', verifyToken, (req, res) => {
+app.post('/posts/:id/comments', verifyToken, async (req, res) => {
     const postId = parseInt(req.params.id, 10);
-    const post = posts.find(p => p.id === postId);
-    if (!post) {
-      return res.status(404).send('Post not found.');
+    const userId = req.user.id;
+    const { comment } = req.body; // Updated to match the column name in the table
+
+    if (!comment || comment.trim() === '') {
+        return res.status(400).json({ error: 'Comment text cannot be empty' });
     }
-    const newComment = {
-      user: users.find(user => user.id === req.userId).fullName,
-      text: req.body.text
-    };
-    post.comments.push(newComment);
-    res.status(201).json(newComment);
-  });
+
+    try {
+        // Insert the comment into the database
+        await db.run('INSERT INTO comments (postId, userId, comment) VALUES (?, ?, ?)', [postId, userId, comment]);
+        res.json({ message: 'Comment added successfully' });
+    } catch (error) {
+        console.error('Failed to add comment', error);
+        res.status(500).json({ error: 'Failed to add comment' });
+    }
+});
+
+
 // Serve uploaded images
 app.use('/uploads', express.static('uploads'));
 
