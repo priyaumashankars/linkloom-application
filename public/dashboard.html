@@ -266,13 +266,13 @@
                 const user = await userResponse.json();
 
                 // Fetch friends, groups, and pages (mocked as example)
-                const friends = ['Friend 1', 'Friend 2', 'Friend 3'];
-                const groups = ['Group 1', 'Group 2', 'Group 3'];
-                const pages = ['Page 1', 'Page 2', 'Page 3'];
+                // const friends = ['Friend 1', 'Friend 2', 'Friend 3'];
+                // const groups = ['Group 1', 'Group 2', 'Group 3'];
+                // const pages = ['Page 1', 'Page 2', 'Page 3'];
 
-                document.getElementById('friendsList').innerHTML = friends.map(friend => `<li><a href="#">${friend}</a></li>`).join('');
-                document.getElementById('groupsList').innerHTML = groups.map(group => `<li><a href="#">${group}</a></li>`).join('');
-                document.getElementById('pagesList').innerHTML = pages.map(page => `<li><a href="#">${page}</a></li>`).join('');
+                // document.getElementById('friendsList').innerHTML = friends.map(friend => `<li><a href="#">${friend}</a></li>`).join('');
+                // document.getElementById('groupsList').innerHTML = groups.map(group => `<li><a href="#">${group}</a></li>`).join('');
+                // document.getElementById('pagesList').innerHTML = pages.map(page => `<li><a href="#">${page}</a></li>`).join('');
 
                 // Fetch posts from the server
                 const postsResponse = await fetch('/posts', {
